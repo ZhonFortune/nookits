@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::{HashMap, HashSet}, fs::{self, OpenOptions}, io::Write, path::PathBuf, process::{Child, Command, Stdio}, sync::{Arc, Mutex}, time::Duration};
+use std::{collections::{HashMap, HashSet}, fs::{self, OpenOptions}, io::Write, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::{Arc, Mutex}, time::Duration};
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use tauri::{menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu}, tray::TrayIconBuilder, AppHandle, Manager};
@@ -61,6 +61,33 @@ fn show_about(app: &AppHandle) {
 fn save_preferences(state: &State, preferences: &Preferences) -> Result<()> {
     let target = state.data.join("settings.json");
     fs::write(&target, serde_json::to_vec_pretty(preferences)?)?;
+    Ok(())
+}
+
+fn initialize_scripts(scripts: &Path, examples: &Path) -> std::io::Result<()> {
+    let first_start = !scripts.try_exists()?;
+    fs::create_dir_all(scripts)?;
+    if !first_start {
+        return Ok(());
+    }
+
+    for entry in fs::read_dir(examples)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !entry.file_type()?.is_file()
+            || !path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("js"))
+        {
+            continue;
+        }
+
+        let content = fs::read(&path)?;
+        let target = scripts.join(entry.file_name());
+        match OpenOptions::new().write(true).create_new(true).open(target) {
+            Ok(mut file) => file.write_all(&content)?,
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
     Ok(())
 }
 
@@ -186,7 +213,7 @@ fn main() {
         .setup(|app| {
             let data = dirs::home_dir().ok_or("Unable to locate home directory")?.join(".nookits");
             let scripts = data.join("scripts");
-            fs::create_dir_all(&scripts)?;
+            initialize_scripts(&scripts, &app.path().resource_dir()?.join("examples"))?;
             let preferences_path = data.join("settings.json");
             let preferences = if preferences_path.exists() {
                 let preferences: Preferences = serde_json::from_slice(&fs::read(&preferences_path)?)?;

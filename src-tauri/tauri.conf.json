@@ -5,7 +5,7 @@
   "identifier": "com.nookits.app",
   "build": {
     "frontendDist": "../assets",
-    "additionalWatchFolders": ["../scripts/runtime.mjs", "../locales", "../assets/icon.svg"]
+    "additionalWatchFolders": ["../scripts/runtime.mjs", "../locales", "../assets/icon.svg", "../assets/example"]
   },
   "app": {
     "windows": [],
@@ -17,6 +17,9 @@
     "shortDescription": "Nookit",
     "icon": ["generated/icons/icon.ico"],
     "externalBin": ["binaries/nookits-node"],
-    "resources": { "generated/runtime/": "runtime/" }
+    "resources": {
+      "generated/runtime/": "runtime/",
+      "../assets/example/": "examples/"
+    }
   }
 }
