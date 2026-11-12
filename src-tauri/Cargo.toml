@@ -4,6 +4,10 @@ version = "0.1.0"
 description = "A lightweight tray script tool"
 edition = "2021"
 
+[[bin]]
+name = "Nookit"
+path = "src/main.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

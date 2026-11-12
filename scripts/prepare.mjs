@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -15,33 +15,15 @@ await mkdir(runtime, { recursive: true });
 await mkdir(binaries, { recursive: true });
 await cp(process.execPath, join(binaries, `nookits-node-${host}${process.platform === 'win32' ? '.exe' : ''}`));
 if (process.argv.includes('--dev')) {
-  await writeFile(join(runtime, 'runner.cjs'), `require(${JSON.stringify(join(root, 'runtime', 'runner.cjs'))});\n`);
+  await writeFile(join(runtime, 'runtime.mjs'), `import ${JSON.stringify(pathToFileURL(join(root, 'scripts', 'runtime.mjs')).href)};\n`);
 } else {
-  await cp(join(root, 'runtime', 'runner.cjs'), join(runtime, 'runner.cjs'));
+  await cp(join(root, 'scripts', 'runtime.mjs'), join(runtime, 'runtime.mjs'));
 }
 const jitiEntry = require.resolve('jiti');
 const jitiRoot = resolve(dirname(jitiEntry), '..');
 await cp(jitiRoot, join(runtime, 'node_modules', 'jiti'), { recursive: true });
-// Generate an original, dependency-free RGBA tray icon as a Windows ICO.
-const size = 32;
-const pixels = Buffer.alloc(size * size * 4);
-for (let y = 0; y < size; y++) {
-  for (let x = 0; x < size; x++) {
-    const i = ((size - 1 - y) * size + x) * 4;
-    const mark = x >= 8 && x <= 23 && y >= 7 && y <= 24 &&
-      (x <= 11 || x >= 20 || Math.abs(x - y) < 3);
-    pixels.set(mark ? [245, 245, 245, 255] : [46, 38, 31, 255], i);
-  }
-}
-const mask = Buffer.alloc(size * size / 8);
-const header = Buffer.alloc(22);
-header.writeUInt16LE(1, 2); header.writeUInt16LE(1, 4);
-header[6] = size; header[7] = size;
-header.writeUInt16LE(1, 10); header.writeUInt16LE(32, 12);
-header.writeUInt32LE(40 + pixels.length + mask.length, 14);
-header.writeUInt32LE(22, 18);
-const dib = Buffer.alloc(40);
-dib.writeUInt32LE(40); dib.writeInt32LE(size, 4); dib.writeInt32LE(size * 2, 8);
-dib.writeUInt16LE(1, 12); dib.writeUInt16LE(32, 14);
-dib.writeUInt32LE(pixels.length + mask.length, 20);
-await writeFile(join(root, 'src-tauri', 'generated', 'icon.ico'), Buffer.concat([header, dib, pixels, mask]));
+execFileSync(process.execPath, [
+  require.resolve('@tauri-apps/cli/tauri.js'),
+  'icon', join(root, 'assets', 'icon.svg'),
+  '--output', join(root, 'src-tauri', 'generated', 'icons'),
+], { cwd: root, stdio: 'inherit', timeout: 60000 });

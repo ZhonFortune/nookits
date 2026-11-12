@@ -1,9 +1,7 @@
-'use strict';
-
-const { readFileSync } = require('node:fs');
-const { createJiti } = require('jiti');
-const { createRequire } = require('node:module');
-const path = require('node:path');
+import { readFileSync } from 'node:fs';
+import { createJiti } from 'jiti';
+import { createRequire } from 'node:module';
+import path from 'node:path';
 
 async function run() {
   const [script, dataDir] = process.argv.slice(2);
@@ -12,7 +10,7 @@ async function run() {
   }
   const jiti = createJiti(script, { fsCache: false, moduleCache: false });
   const source = readFileSync(script, 'utf8').replace(/^\uFEFF/, '').trim().replace(/;\s*$/, '');
-  const entry = jiti.evalModule(`module.exports = (${source});`, { filename: script });
+  const entry = jiti.evalModule(`module.exports = (${source}\n);`, { filename: script });
   if (typeof entry !== 'function') throw new TypeError('The script must contain a function.');
   await entry(Object.freeze({
     dataDir,

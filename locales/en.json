@@ -8,5 +8,8 @@
   "error": "Unable to complete the action",
   "scriptError": "Script failed. View runtime.log in the data folder for details.",
   "busy": "This script is already running.",
-  "exampleName": "Welcome"
+  "about": "About",
+  "aboutDescription": "Your scripts, one click away.",
+  "repository": "View on GitHub",
+  "close": "Close"
 }

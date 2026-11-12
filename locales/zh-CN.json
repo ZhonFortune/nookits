@@ -8,5 +8,8 @@
   "error": "操作未完成",
   "scriptError": "脚本运行失败，请查看数据目录中的 runtime.log。",
   "busy": "此脚本正在运行。",
-  "exampleName": "欢迎使用"
+  "about": "关于",
+  "aboutDescription": "常用脚本，一触即达。",
+  "repository": "访问 GitHub",
+  "close": "关闭"
 }

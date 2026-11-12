@@ -5,7 +5,7 @@ use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use tauri::{menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu}, tray::TrayIconBuilder, AppHandle, Manager};
 use tauri_plugin_autostart::ManagerExt;
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_opener::OpenerExt;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -32,7 +32,30 @@ fn message(app: &AppHandle, key: &str) {
     let state = app.state::<State>();
     let language = state.preferences.lock().unwrap().language.clone();
     let text = strings(&language);
-    app.dialog().message(&text[key]).title("Nookits").show(|_| {});
+    app.dialog().message(&text[key]).title("Nookit").show(|_| {});
+}
+
+fn show_about(app: &AppHandle) {
+    let language = app.state::<State>().preferences.lock().unwrap().language.clone();
+    let text = strings(&language);
+    let repository = env!("NOOKIT_GITHUB_URL");
+    let content = format!("Nookit {}\n\n{}", app.package_info().version, text["aboutDescription"]);
+    let dialog = app.dialog().message(content).title(&text["about"]);
+    if repository.is_empty() {
+        dialog.show(|_| {});
+    } else {
+        let handle = app.clone();
+        dialog.buttons(MessageDialogButtons::OkCancelCustom(
+            text["repository"].clone(), text["close"].clone(),
+        )).show(move |open| {
+            if open {
+                if let Err(error) = handle.opener().open_url(repository, None::<&str>) {
+                    eprintln!("{error}");
+                    message(&handle, "error");
+                }
+            }
+        });
+    }
 }
 
 fn save_preferences(state: &State, preferences: &Preferences) -> Result<()> {
@@ -69,6 +92,7 @@ fn refresh(app: &AppHandle) -> Result<()> {
     settings.append(&languages)?;
     settings.append(&CheckMenuItem::with_id(app, "autostart", &text["autostart"], true, app.autolaunch().is_enabled()?, None::<&str>)?)?;
     menu.append(&settings)?;
+    menu.append(&MenuItem::with_id(app, "about", &text["about"], true, None::<&str>)?)?;
     menu.append(&MenuItem::with_id(app, "quit", &text["quit"], true, None::<&str>)?)?;
     if let Some(tray) = app.tray_by_id("main") { tray.set_menu(Some(menu))?; }
     *state.scripts.lock().unwrap() = scripts;
@@ -81,7 +105,7 @@ fn run_script(app: &AppHandle, script: PathBuf) -> Result<()> {
     let result = (|| -> Result<_> {
         let executable = std::env::current_exe()?.parent().ok_or("Missing executable directory")?
             .join(format!("nookits-node{}", std::env::consts::EXE_SUFFIX));
-        let runner = app.path().resource_dir()?.join("runtime/runner.cjs");
+        let runner = app.path().resource_dir()?.join("runtime/runtime.mjs");
         let log_path = state.data.join("runtime.log");
         if fs::metadata(&log_path).is_ok_and(|meta| meta.len() > 1_048_576) { fs::write(&log_path, b"")?; }
         let mut log = OpenOptions::new().create(true).append(true).open(log_path)?;
@@ -122,6 +146,7 @@ fn run_script(app: &AppHandle, script: PathBuf) -> Result<()> {
 fn handle_menu(app: &AppHandle, id: &str) -> Result<()> {
     let state = app.state::<State>();
     match id {
+        "about" => show_about(app),
         "quit" => {
             for child in state.children.lock().unwrap().iter() {
                 let mut child = child.lock().unwrap();
@@ -161,7 +186,6 @@ fn main() {
         .setup(|app| {
             let data = dirs::home_dir().ok_or("Unable to locate home directory")?.join(".nookits");
             let scripts = data.join("scripts");
-            let first_start = !scripts.exists();
             fs::create_dir_all(&scripts)?;
             let preferences_path = data.join("settings.json");
             let preferences = if preferences_path.exists() {
@@ -169,21 +193,21 @@ fn main() {
                 if !["en", "zh-CN"].contains(&preferences.language.as_str()) { return Err("Unsupported saved language".into()); }
                 preferences
             } else { Preferences { language: "zh-CN".into() } };
-            if first_start {
-                let text = strings(&preferences.language);
-                fs::write(scripts.join(format!("{}.js", text["exampleName"])), include_str!("../../examples/welcome.js"))?;
-            }
             app.manage(State { data, preferences: Mutex::new(preferences.clone()), running: Mutex::new(HashSet::new()), children: Mutex::new(Vec::new()), scripts: Mutex::new(HashMap::new()) });
-            if !preferences_path.exists() { save_preferences(&app.state::<State>(), &preferences)?; }
+            if !preferences_path.exists() {
+                save_preferences(&app.state::<State>(), &preferences)
+                    .map_err(|error| -> Box<dyn std::error::Error> { error })?;
+            }
             TrayIconBuilder::with_id("main")
-                .icon(tauri::image::Image::from_bytes(include_bytes!("../generated/icon.ico"))?)
-                .tooltip("Nookits").show_menu_on_left_click(true)
+                .icon(tauri::image::Image::from_bytes(include_bytes!("../generated/icons/icon.ico"))?)
+                .tooltip("Nookit").show_menu_on_left_click(true)
                 .on_menu_event(|app, event| {
                     if let Err(error) = handle_menu(app, event.id.as_ref()) {
                         eprintln!("{error}"); message(app, "error"); let _ = refresh(app);
                     }
                 }).build(app)?;
-            refresh(app.handle())?;
+            refresh(app.handle())
+                .map_err(|error| -> Box<dyn std::error::Error> { error })?;
             let handle = app.handle().clone();
             let (sender, receiver) = std::sync::mpsc::channel();
             let mut watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
@@ -202,5 +226,5 @@ fn main() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("Unable to start Nookits");
+        .expect("Unable to start Nookit");
 }
