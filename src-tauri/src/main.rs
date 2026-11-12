@@ -9,6 +9,34 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_opener::OpenerExt;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+const INSTALLER_EXIT_ARGUMENT: &str = "--installer-exit";
+const INSTALLER_REMOVE_USER_DATA_ARGUMENT: &str = "--installer-remove-user-data";
+const DATA_DIRECTORY: &str = ".nookits";
+const SCRIPTS_DIRECTORY: &str = "scripts";
+
+fn remove_installer_user_data(profile: &Path) -> Result<()> {
+    if !profile.is_absolute() || !profile.is_dir() {
+        return Err("Invalid user profile directory".into());
+    }
+    let profile = fs::canonicalize(profile)?;
+    let data = profile.join(DATA_DIRECTORY);
+    let metadata = match fs::symlink_metadata(&data) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    #[cfg(windows)] {
+        use std::os::windows::fs::MetadataExt;
+        if metadata.file_attributes() & 0x400 != 0 {
+            return Err("Refusing to remove a redirected user data directory".into());
+        }
+    }
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err("Invalid user data directory".into());
+    }
+    fs::remove_dir_all(data)?;
+    Ok(())
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -98,7 +126,7 @@ fn refresh(app: &AppHandle) -> Result<()> {
     let language = state.preferences.lock().unwrap().language.clone();
     let text = strings(&language);
     let menu = Menu::new(app)?;
-    let mut paths = fs::read_dir(state.data.join("scripts"))?
+    let mut paths = fs::read_dir(state.data.join(SCRIPTS_DIRECTORY))?
         .filter_map(|entry| entry.ok()).map(|entry| entry.path())
         .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("js")))
         .collect::<Vec<_>>();
@@ -140,7 +168,7 @@ fn run_script(app: &AppHandle, script: PathBuf) -> Result<()> {
         let mut log = OpenOptions::new().create(true).append(true).open(log_path)?;
         writeln!(log, "\nRunning {}", script.display())?;
         let mut command = Command::new(executable);
-        command.arg(runner).arg(&script).arg(&state.data).current_dir(state.data.join("scripts"))
+        command.arg(runner).arg(&script).arg(&state.data).current_dir(state.data.join(SCRIPTS_DIRECTORY))
             .stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log);
         #[cfg(windows)] {
             use std::os::windows::process::CommandExt;
@@ -172,19 +200,23 @@ fn run_script(app: &AppHandle, script: PathBuf) -> Result<()> {
     Ok(())
 }
 
+fn quit(app: &AppHandle) {
+    if let Some(state) = app.try_state::<State>() {
+        for child in state.children.lock().unwrap().iter() {
+            let mut child = child.lock().unwrap();
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+    app.exit(0);
+}
+
 fn handle_menu(app: &AppHandle, id: &str) -> Result<()> {
     let state = app.state::<State>();
     match id {
         "about" => show_about(app),
-        "quit" => {
-            for child in state.children.lock().unwrap().iter() {
-                let mut child = child.lock().unwrap();
-                let _ = child.kill();
-                let _ = child.wait();
-            }
-            app.exit(0);
-        }
-        "open" => app.opener().open_path(state.data.join("scripts").to_string_lossy(), None::<&str>)?,
+        "quit" => quit(app),
+        "open" => app.opener().open_path(state.data.join(SCRIPTS_DIRECTORY).to_string_lossy(), None::<&str>)?,
         "autostart" => {
             let launcher = app.autolaunch();
             if launcher.is_enabled()? { launcher.disable()?; } else { launcher.enable()?; }
@@ -207,14 +239,34 @@ fn handle_menu(app: &AppHandle, id: &str) -> Result<()> {
 }
 
 fn main() {
+    let mut arguments = std::env::args_os().skip(1);
+    if arguments.next().is_some_and(|argument| argument == INSTALLER_REMOVE_USER_DATA_ARGUMENT) {
+        let result = match (arguments.next(), arguments.next()) {
+            (Some(profile), None) => remove_installer_user_data(Path::new(&profile)),
+            _ => Err("Expected exactly one user profile directory".into()),
+        };
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
+        .plugin(tauri_plugin_single_instance::init(|app, arguments, _| {
+            if arguments.iter().skip(1).any(|argument| argument == INSTALLER_EXIT_ARGUMENT) {
+                quit(app);
+            }
+        }))
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let data = dirs::home_dir().ok_or("Unable to locate home directory")?.join(".nookits");
-            let scripts = data.join("scripts");
+            if std::env::args_os().skip(1).any(|argument| argument == INSTALLER_EXIT_ARGUMENT) {
+                app.handle().exit(0);
+                return Ok(());
+            }
+            let data = dirs::home_dir().ok_or("Unable to locate home directory")?.join(DATA_DIRECTORY);
+            let scripts = data.join(SCRIPTS_DIRECTORY);
             initialize_scripts(&scripts, &app.path().resource_dir()?.join("examples"))?;
             let preferences_path = data.join("settings.json");
             let preferences = if preferences_path.exists() {

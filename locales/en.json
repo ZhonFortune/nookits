@@ -13,5 +13,11 @@
   "repository": "Open GitHub Repository",
   "repositoryUnavailable": "The repository link is unavailable in this version.",
   "confirm": "OK",
-  "close": "Close"
+  "close": "Close",
+  "installerUninstallTitle": "Remove [ProductName]",
+  "installerUninstallDescription": "Nookits and its running scripts will close before removal.",
+  "installerKeepUserData": "Keep user data",
+  "installerKeepUserDataDescription": "Keep user data, including scripts, settings, and logs.",
+  "installerRemove": "Remove",
+  "installerCancel": "Cancel"
 }

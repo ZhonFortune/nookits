@@ -1,10 +1,8 @@
-# Nookits
-
-[English](README.md) | 简体中文
+# Nookits - 轻量脚本工具
 
 <img src="assets/icon.svg" alt="Nookits" width="96" />
 
-**常用脚本，一触即达。**
+<br>[English](README.md) | 简体中文<br>
 
 Nookits 是一款常驻 Windows 系统托盘的轻量脚本工具。把常用 JavaScript 脚本放进文件夹，就能从托盘菜单一键运行，方便处理生成密码、整理文件等日常任务。
 

@@ -13,5 +13,11 @@
   "repository": "打开 GitHub 仓库",
   "repositoryUnavailable": "当前版本暂未提供仓库链接。",
   "confirm": "确定",
-  "close": "关闭"
+  "close": "关闭",
+  "installerUninstallTitle": "卸载 [ProductName]",
+  "installerUninstallDescription": "卸载前将关闭 Nookits 及其正在运行的脚本。",
+  "installerKeepUserData": "保留用户数据",
+  "installerKeepUserDataDescription": "保留用户数据，包括脚本目录、设置、日志。",
+  "installerRemove": "卸载",
+  "installerCancel": "取消"
 }

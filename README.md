@@ -1,10 +1,8 @@
-# Nookits
+# Nookits - Your scripts, one click away.
 
 <img src="assets/icon.svg" alt="Nookits" width="96" />
 
 <br>English | [简体中文](README_ZHCN.md)<br>
-
-**Your scripts, one click away.**
 
 Nookits is a lightweight script tool that lives in the Windows system tray. Drop your JavaScript files into a folder and run them from the tray menu to handle everyday tasks such as generating passwords or organizing files.
 

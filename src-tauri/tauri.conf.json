@@ -18,6 +18,15 @@
     "publisher": "Github@ZhonFortune",
     "icon": ["generated/icons/icon.ico"],
     "externalBin": ["binaries/nookits-node"],
+    "windows": {
+      "wix": {
+        "fragmentPaths": ["generated/installer/uninstall.wxs"],
+        "componentRefs": ["NookitsUserDataCleanup"],
+        "language": {
+          "en-US": { "localePath": "generated/installer/en-US.wxl" }
+        }
+      }
+    },
     "resources": {
       "generated/runtime/": "runtime/",
       "../assets/example/": "examples/"

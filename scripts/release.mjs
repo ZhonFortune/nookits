@@ -139,7 +139,7 @@ if (mode === 'validate') {
     if (installers.length !== 1) throw new Error('Expected exactly one MSI installer.');
     const destination = join(root, 'release-assets');
     await mkdir(destination, { recursive: true });
-    await copyFile(join(bundle, installers[0]), join(destination, `Nookits-${platform}-${cpu}-${tag}.msi`));
+    await copyFile(join(bundle, installers[0]), join(destination, `Nookits_${platform}_${cpu}_${tag}.msi`));
   } else {
     throw new Error('Expected validate, prepare, notes, or collect.');
   }
