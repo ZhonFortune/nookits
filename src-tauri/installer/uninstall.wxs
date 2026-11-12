@@ -45,7 +45,7 @@
 
     <!-- Ask the existing instance to stop its scripts and exit normally. -->
     <!-- The incoming package's FileKey does not exist yet during a major upgrade. -->
-    <CustomAction Id="NookitsRequestExit" Directory="SystemFolder"
+    <CustomAction Id="NookitsRequestExit" Directory="INSTALLDIR"
                   ExeCommand="&quot;[INSTALLDIR]{{product_name}}.exe&quot; --installer-exit"
                   Execute="immediate" Return="ignore" />
     <CustomAction Id="NookitsRequireUninstallConfirmation" Error="!(loc.installerConfirmUninstall)" />
