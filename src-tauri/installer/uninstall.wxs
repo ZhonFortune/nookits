@@ -44,29 +44,33 @@
     </DirectoryRef>
 
     <!-- Ask the existing instance to stop its scripts and exit normally. -->
-    <CustomAction Id="NookitsRequestExit" FileKey="Path" ExeCommand="--installer-exit"
+    <!-- The incoming package's FileKey does not exist yet during a major upgrade. -->
+    <CustomAction Id="NookitsRequestExit" Directory="SystemFolder"
+                  ExeCommand="&quot;[INSTALLDIR]{{product_name}}.exe&quot; --installer-exit"
                   Execute="immediate" Return="ignore" />
     <CustomAction Id="NookitsRequireUninstallConfirmation" Error="!(loc.installerConfirmUninstall)" />
     <CustomAction Id="NookitsDeleteUserData" FileKey="Path"
                   ExeCommand="--installer-remove-user-data &quot;[NOOKITS_USER_PROFILE]&quot;"
                   Execute="deferred" Impersonate="yes" Return="check" />
-    <!-- Unresponsive instances and orphaned runtimes must exit before file removal. -->
+    <!-- Allow the exit request to complete before MSI checks for locked files.
+         Keep these actions immediate: deferred/elevated shutdown cannot run before InstallValidate.
+         Remaining locks require manual closure rather than forced shutdown of the desktop. -->
     <util:CloseApplication Id="NookitsCloseApp" Target="{{product_name}}.exe"
-                           CloseMessage="yes" ElevatedCloseMessage="yes"
-                           RebootPrompt="no" TerminateProcess="0" Timeout="5" Sequence="1">
+                           CloseMessage="yes"
+                           RebootPrompt="no" Timeout="5" Sequence="1">
       Installed OR WIX_UPGRADE_DETECTED
     </util:CloseApplication>
     <util:CloseApplication Id="NookitsCloseRuntime" Target="{{runtime_name}}.exe"
-                           CloseMessage="yes" ElevatedCloseMessage="yes"
-                           RebootPrompt="no" TerminateProcess="0" Timeout="5" Sequence="2">
+                           CloseMessage="yes"
+                           RebootPrompt="no" Timeout="5" Sequence="2">
       Installed OR WIX_UPGRADE_DETECTED
     </util:CloseApplication>
     <InstallExecuteSequence>
       <Custom Action="NookitsRequireUninstallConfirmation" Before="NookitsRequestExit">
         Installed AND REMOVE = "ALL" AND UILevel &gt;= 5 AND NOT UPGRADINGPRODUCTCODE AND NOT NOOKITS_UNINSTALL_CONFIRMED
       </Custom>
-      <Custom Action="NookitsRequestExit" Before="InstallValidate">Installed OR WIX_UPGRADE_DETECTED</Custom>
-      <Custom Action="WixCloseApplications$(var.NookitsUtilSuffix)" After="InstallInitialize">
+      <Custom Action="NookitsRequestExit" Before="WixCloseApplications$(var.NookitsUtilSuffix)">Installed OR WIX_UPGRADE_DETECTED</Custom>
+      <Custom Action="WixCloseApplications$(var.NookitsUtilSuffix)" Before="InstallValidate">
         Installed OR WIX_UPGRADE_DETECTED
       </Custom>
       <Custom Action="NookitsDeleteUserData" Before="RemoveFiles">

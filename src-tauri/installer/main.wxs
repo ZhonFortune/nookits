@@ -32,6 +32,10 @@
         <!-- reinstall all files; rewrite all registry entries; reinstall all shortcuts -->
         <Property Id="REINSTALLMODE" Value="amus" />
 
+        <!-- Detect file locks without allowing Restart Manager to shut down Explorer
+             or other applications. Only our own shutdown actions may close processes. -->
+        <Property Id="MSIRESTARTMANAGERCONTROL" Value="DisableShutdown" />
+
         <!-- Auto launch app after installation, useful for passive mode which usually used in updates -->
         <Property Id="AUTOLAUNCHAPP" Secure="yes" />
         <!-- Property to forward cli args to the launched app to not lose those of the pre-update instance -->
