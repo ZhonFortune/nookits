@@ -12,6 +12,9 @@ if (!host) throw new Error('Unable to determine the Rust host target.');
 const runtime = join(root, 'src-tauri', 'generated', 'runtime');
 const binaries = join(root, 'src-tauri', 'binaries');
 const installer = join(root, 'src-tauri', 'generated', 'installer');
+const frontend = join(root, 'src-tauri', 'generated', 'frontend');
+await mkdir(frontend, { recursive: true });
+await cp(join(root, 'assets', 'index.html'), join(frontend, 'index.html'));
 await mkdir(installer, { recursive: true });
 const installerLocales = new Map([['en-US', 'en'], ['zh-CN', 'zh-CN']]);
 const escapeXml = (value) => value.replace(/[&<>"']/g, (character) => ({

@@ -2240,7 +2240,9 @@ dependencies = [
 name = "nookits"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "dirs 6.0.0",
+ "dunce",
  "notify",
  "serde",
  "serde_json",

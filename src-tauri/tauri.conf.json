@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.nookits.app",
   "build": {
-    "frontendDist": "../assets",
+    "frontendDist": "generated/frontend",
     "additionalWatchFolders": ["../scripts/runtime.mjs", "../locales", "../assets/icon.svg", "../assets/example"]
   },
   "app": {
@@ -20,6 +20,7 @@
     "externalBin": ["binaries/nookits-node"],
     "windows": {
       "wix": {
+        "template": "installer/main.wxs",
         "fragmentPaths": ["generated/installer/uninstall.wxs"],
         "componentRefs": ["NookitsUserDataCleanup"],
         "language": {

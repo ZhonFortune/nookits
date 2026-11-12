@@ -6,6 +6,8 @@
   "quit": "Quit",
   "empty": "No scripts yet",
   "error": "Unable to complete the action",
+  "openLog": "Open log",
+  "openLogError": "Unable to open the log file.",
   "scriptError": "Script failed. View runtime.log in the data folder for details.",
   "busy": "This script is already running.",
   "about": "About",

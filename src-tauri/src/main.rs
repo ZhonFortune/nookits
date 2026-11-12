@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::{HashMap, HashSet}, fs::{self, OpenOptions}, io::Write, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::{Arc, Mutex}, time::Duration};
+use std::{collections::{HashMap, HashSet}, fs::{self, OpenOptions}, io::{BufRead, BufReader, Read, Write}, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::{Arc, Mutex}, time::Duration};
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use tauri::{menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu}, tray::TrayIconBuilder, AppHandle, Manager};
@@ -13,6 +13,29 @@ const INSTALLER_EXIT_ARGUMENT: &str = "--installer-exit";
 const INSTALLER_REMOVE_USER_DATA_ARGUMENT: &str = "--installer-remove-user-data";
 const DATA_DIRECTORY: &str = ".nookits";
 const SCRIPTS_DIRECTORY: &str = "scripts";
+const RUNTIME_LOG: &str = "runtime.log";
+
+fn write_log(output: &mut impl Write, content: &str) -> std::io::Result<()> {
+    let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f %:z");
+    output.write_all(format!("[{timestamp}] {content}\n").as_bytes())
+}
+
+fn capture_output(input: impl Read + Send + 'static, log: Arc<Mutex<fs::File>>) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        for line in BufReader::new(input).split(b'\n') {
+            match line {
+                Ok(line) => {
+                    let text = String::from_utf8_lossy(&line);
+                    let _ = write_log(&mut *log.lock().unwrap(), text.trim_end_matches('\r'));
+                }
+                Err(error) => {
+                    let _ = write_log(&mut *log.lock().unwrap(), &format!("Unable to read script output: {error}"));
+                    break;
+                }
+            }
+        }
+    })
+}
 
 fn remove_installer_user_data(profile: &Path) -> Result<()> {
     if !profile.is_absolute() || !profile.is_dir() {
@@ -60,7 +83,29 @@ fn message(app: &AppHandle, key: &str) {
     let state = app.state::<State>();
     let language = state.preferences.lock().unwrap().language.clone();
     let text = strings(&language);
-    app.dialog().message(&text[key]).title("Nookits").show(|_| {});
+    let dialog = app.dialog().message(&text[key]).title("Nookits");
+    if !["error", "scriptError"].contains(&key) {
+        dialog.show(|_| {});
+        return;
+    }
+    let log_path = state.data.join(RUNTIME_LOG);
+    let handle = app.clone();
+    dialog.buttons(MessageDialogButtons::OkCancelCustom(text["openLog"].clone(), text["close"].clone()))
+        .show(move |open| {
+            if !open { return; }
+            let result = (|| -> Result<()> {
+                OpenOptions::new().create(true).append(true).open(&log_path)?;
+                handle.opener().open_path(log_path.to_string_lossy(), None::<&str>)?;
+                Ok(())
+            })();
+            if let Err(error) = result {
+                if let Ok(mut log) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                    let _ = write_log(&mut log, &error.to_string());
+                }
+                handle.dialog().message(&strings(&handle.state::<State>().preferences.lock().unwrap().language)["openLogError"])
+                    .title("Nookits").show(|_| {});
+            }
+        });
 }
 
 fn show_about(app: &AppHandle) {
@@ -162,24 +207,29 @@ fn run_script(app: &AppHandle, script: PathBuf) -> Result<()> {
     let result = (|| -> Result<_> {
         let executable = std::env::current_exe()?.parent().ok_or("Missing executable directory")?
             .join(format!("nookits-node{}", std::env::consts::EXE_SUFFIX));
-        let runner = app.path().resource_dir()?.join("runtime/runtime.mjs");
-        let log_path = state.data.join("runtime.log");
+        let executable = dunce::canonicalize(executable)?;
+        let runner = dunce::canonicalize(app.path().resource_dir()?.join("runtime/runtime.mjs"))?;
+        let script_path = dunce::canonicalize(&script)?;
+        let data = dunce::canonicalize(&state.data)?;
+        let log_path = state.data.join(RUNTIME_LOG);
         if fs::metadata(&log_path).is_ok_and(|meta| meta.len() > 1_048_576) { fs::write(&log_path, b"")?; }
         let mut log = OpenOptions::new().create(true).append(true).open(log_path)?;
-        writeln!(log, "\nRunning {}", script.display())?;
+        write_log(&mut log, &format!("Running {}", script_path.display()))?;
         let mut command = Command::new(executable);
-        command.arg(runner).arg(&script).arg(&state.data).current_dir(state.data.join(SCRIPTS_DIRECTORY))
-            .stdin(Stdio::null()).stdout(log.try_clone()?).stderr(log);
+        command.arg(runner).arg(&script_path).arg(&data).current_dir(data.join(SCRIPTS_DIRECTORY))
+            .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
         #[cfg(windows)] {
             use std::os::windows::process::CommandExt;
             command.creation_flags(0x08000000);
         }
-        Ok(command.spawn()?)
+        Ok((command.spawn()?, Arc::new(Mutex::new(log))))
     })();
-    let child = match result {
+    let (mut child, log) = match result {
         Ok(child) => child,
         Err(error) => { state.running.lock().unwrap().remove(&script); return Err(error); }
     };
+    if let Some(pipe) = child.stdout.take() { capture_output(pipe, log.clone()); }
+    if let Some(pipe) = child.stderr.take() { capture_output(pipe, log.clone()); }
     let child = Arc::new(Mutex::new(child));
     state.children.lock().unwrap().push(child.clone());
     let app = app.clone();
@@ -193,6 +243,7 @@ fn run_script(app: &AppHandle, script: PathBuf) -> Result<()> {
                 _ => { let _ = child.kill(); let _ = child.wait(); break false; }
             }
         };
+        let _ = write_log(&mut *log.lock().unwrap(), &format!("Finished {}: {}", script.display(), if success { "success" } else { "failed or timed out" }));
         app.state::<State>().children.lock().unwrap().retain(|item| !Arc::ptr_eq(item, &child));
         app.state::<State>().running.lock().unwrap().remove(&script);
         if !success { message(&app, "scriptError"); }
@@ -284,6 +335,9 @@ fn main() {
                 .tooltip("Nookits").show_menu_on_left_click(true)
                 .on_menu_event(|app, event| {
                     if let Err(error) = handle_menu(app, event.id.as_ref()) {
+                        if let Ok(mut log) = OpenOptions::new().create(true).append(true).open(app.state::<State>().data.join(RUNTIME_LOG)) {
+                            let _ = write_log(&mut log, &error.to_string());
+                        }
                         eprintln!("{error}"); message(app, "error"); let _ = refresh(app);
                     }
                 }).build(app)?;
