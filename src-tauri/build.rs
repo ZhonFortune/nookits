@@ -1,4 +1,6 @@
 fn main() {
+    const APP_ICON: &str = "generated/icons/icon.ico";
+    println!("cargo:rerun-if-changed={APP_ICON}");
     const REPOSITORY_ENV: &str = "NOOKIT_GITHUB_URL";
     println!("cargo:rerun-if-env-changed={REPOSITORY_ENV}");
     let repository = std::env::var(REPOSITORY_ENV).unwrap_or_default();
@@ -13,5 +15,8 @@ fn main() {
         }), "NOOKIT_GITHUB_URL must point to a GitHub owner/repository");
     }
     println!("cargo:rustc-env={REPOSITORY_ENV}={repository}");
-    tauri_build::build();
+    let attributes = tauri_build::Attributes::new().windows_attributes(
+        tauri_build::WindowsAttributes::new().window_icon_path(APP_ICON),
+    );
+    tauri_build::try_build(attributes).expect("Unable to embed application resources");
 }
