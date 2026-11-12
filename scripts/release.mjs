@@ -63,9 +63,6 @@ async function writeReleaseNotes() {
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category).push(`- ${escapeMarkdown(subject)} [${hash.slice(0, 7)}](${repository}/commit/${hash})`);
   }
-  const english = await readJson('locales/en.json');
-  const chinese = await readJson('locales/zh-CN.json');
-  const metadata = await readJson('package.json');
   const categoryOrder = [...releaseCategories.values()];
   const rank = (category) => {
     if (category === 'Other Changes') return categoryOrder.length + 1;
@@ -78,8 +75,7 @@ async function writeReleaseNotes() {
       .map(([category, items]) => `**${category}:**\n\n${items.join('\n')}`)
       .join('\n\n')
     : '**Other Changes:**\n\n- No new commits.';
-  await writeFile(join(root, 'release-notes.md'),
-    `${chinese.aboutDescription}\n\n${english.aboutDescription}\n\n${changes}\n\n${metadata.author}\n`);
+  await writeFile(join(root, 'release-notes.md'), `${changes}\n`);
 }
 
 async function readJson(path) {

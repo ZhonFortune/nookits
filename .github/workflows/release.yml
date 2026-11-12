@@ -54,11 +54,18 @@ jobs:
           node-version: "22"
           architecture: ${{ matrix.cpu }}
           cache: npm
+          cache-dependency-path: package-lock.json
       - uses: dtolnay/rust-toolchain@stable
+      - name: Restore Rust dependencies and build cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          shared-key: release-${{ matrix.cpu }}
+          cache-on-failure: false
       - name: Set versions from tag
         run: node scripts/release.mjs prepare
       - name: Install locked dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
       - name: Build installer
         run: npm run build -- --ci
       - name: Name release installer
