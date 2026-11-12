@@ -1,0 +1,14 @@
+{
+  "name": "nookits",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/prepare.mjs --dev && tauri dev",
+    "build": "node scripts/prepare.mjs && tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "jiti": "^2.6.0"
+  }
+}

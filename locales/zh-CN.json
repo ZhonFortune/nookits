@@ -1,0 +1,12 @@
+{
+  "openScripts": "打开脚本目录",
+  "settings": "设置",
+  "language": "语言",
+  "autostart": "开机启动",
+  "quit": "退出",
+  "empty": "暂无脚本",
+  "error": "操作未完成",
+  "scriptError": "脚本运行失败，请查看数据目录中的 runtime.log。",
+  "busy": "此脚本正在运行。",
+  "exampleName": "欢迎使用"
+}

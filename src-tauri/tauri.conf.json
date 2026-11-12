@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Nookits",
+  "version": "0.1.0",
+  "identifier": "com.nookits.app",
+  "build": {
+    "frontendDist": "../assets",
+    "additionalWatchFolders": ["../runtime", "../locales"]
+  },
+  "app": {
+    "windows": [],
+    "security": { "csp": "default-src 'none'" }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["generated/icon.ico"],
+    "externalBin": ["binaries/nookits-node"],
+    "resources": { "generated/runtime/": "runtime/" }
+  }
+}

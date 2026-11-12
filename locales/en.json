@@ -1,0 +1,12 @@
+{
+  "openScripts": "Open scripts folder",
+  "settings": "Settings",
+  "language": "Language",
+  "autostart": "Launch at login",
+  "quit": "Quit",
+  "empty": "No scripts yet",
+  "error": "Unable to complete the action",
+  "scriptError": "Script failed. View runtime.log in the data folder for details.",
+  "busy": "This script is already running.",
+  "exampleName": "Welcome"
+}
