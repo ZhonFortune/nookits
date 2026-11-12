@@ -32,30 +32,32 @@ fn message(app: &AppHandle, key: &str) {
     let state = app.state::<State>();
     let language = state.preferences.lock().unwrap().language.clone();
     let text = strings(&language);
-    app.dialog().message(&text[key]).title("Nookit").show(|_| {});
+    app.dialog().message(&text[key]).title("Nookits").show(|_| {});
 }
 
 fn show_about(app: &AppHandle) {
     let language = app.state::<State>().preferences.lock().unwrap().language.clone();
     let text = strings(&language);
     let repository = env!("NOOKIT_GITHUB_URL");
-    let content = format!("Nookit {}\n\n{}", app.package_info().version, text["aboutDescription"]);
-    let dialog = app.dialog().message(content).title(&text["about"]);
-    if repository.is_empty() {
-        dialog.show(|_| {});
-    } else {
-        let handle = app.clone();
-        dialog.buttons(MessageDialogButtons::OkCancelCustom(
-            text["repository"].clone(), text["close"].clone(),
-        )).show(move |open| {
-            if open {
-                if let Err(error) = handle.opener().open_url(repository, None::<&str>) {
-                    eprintln!("{error}");
-                    message(&handle, "error");
-                }
+    let content = format!("Nookits {}\n\n{}", app.package_info().version, text["aboutDescription"]);
+    let handle = app.clone();
+    app.dialog().message(content).title(&text["about"])
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            text["repository"].clone(), text["confirm"].clone(),
+        ))
+        .show(move |open| {
+            if !open {
+                return;
+            }
+            if repository.is_empty() {
+                message(&handle, "repositoryUnavailable");
+                return;
+            }
+            if let Err(error) = handle.opener().open_url(repository, None::<&str>) {
+                eprintln!("{error}");
+                message(&handle, "error");
             }
         });
-    }
 }
 
 fn save_preferences(state: &State, preferences: &Preferences) -> Result<()> {
@@ -227,7 +229,7 @@ fn main() {
             }
             TrayIconBuilder::with_id("main")
                 .icon(tauri::image::Image::from_bytes(include_bytes!("../generated/icons/icon.ico"))?)
-                .tooltip("Nookit").show_menu_on_left_click(true)
+                .tooltip("Nookits").show_menu_on_left_click(true)
                 .on_menu_event(|app, event| {
                     if let Err(error) = handle_menu(app, event.id.as_ref()) {
                         eprintln!("{error}"); message(app, "error"); let _ = refresh(app);
@@ -253,5 +255,5 @@ fn main() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("Unable to start Nookit");
+        .expect("Unable to start Nookits");
 }

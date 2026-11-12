@@ -10,6 +10,8 @@
   "busy": "此脚本正在运行。",
   "about": "关于",
   "aboutDescription": "常用脚本，一触即达。",
-  "repository": "访问 GitHub",
+  "repository": "打开 GitHub 仓库",
+  "repositoryUnavailable": "当前版本暂未提供仓库链接。",
+  "confirm": "确定",
   "close": "关闭"
 }

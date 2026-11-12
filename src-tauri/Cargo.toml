@@ -1,11 +1,12 @@
 [package]
 name = "nookits"
 version = "0.1.0"
-description = "A lightweight tray script tool"
+description = "Your scripts, one click away."
+authors = ["Github@ZhonFortune"]
 edition = "2021"
 
 [[bin]]
-name = "Nookit"
+name = "Nookits"
 path = "src/main.rs"
 
 [build-dependencies]

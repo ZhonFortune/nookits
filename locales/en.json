@@ -10,6 +10,8 @@
   "busy": "This script is already running.",
   "about": "About",
   "aboutDescription": "Your scripts, one click away.",
-  "repository": "View on GitHub",
+  "repository": "Open GitHub Repository",
+  "repositoryUnavailable": "The repository link is unavailable in this version.",
+  "confirm": "OK",
   "close": "Close"
 }

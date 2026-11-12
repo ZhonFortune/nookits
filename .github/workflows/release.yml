@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*-*'
+      - 'v.[0-9]*.[0-9]*.[0-9]*-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.tag.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate release tag
+        id: tag
+        run: node scripts/release.mjs validate
+
+  build:
+    needs: validate
+    if: needs.validate.outputs.publish == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            platform: Windows
+            cpu: x64
+          - runner: windows-11-arm
+            platform: Windows
+            cpu: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      NOOKIT_GITHUB_URL: https://github.com/${{ github.repository }}
+      RELEASE_PLATFORM: ${{ matrix.platform }}
+      RELEASE_CPU: ${{ matrix.cpu }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          architecture: ${{ matrix.cpu }}
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Set versions from tag
+        run: node scripts/release.mjs prepare
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build installer
+        run: npm run build -- --ci
+      - name: Name release installer
+        run: node scripts/release.mjs collect
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nookits-${{ matrix.platform }}-${{ matrix.cpu }}
+          path: release-assets/*.msi
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare release description
+        run: node scripts/release.mjs notes
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Nookits-*
+          path: release-assets
+          merge-multiple: true
+      - name: Publish GitHub Release
+        shell: pwsh
+        run: |
+          $releaseFiles = @(Get-ChildItem -LiteralPath release-assets -File -Filter '*.msi' | ForEach-Object FullName)
+          if ($releaseFiles.Count -ne 2) { throw 'Expected installers for both architectures.' }
+          gh release create "$env:GITHUB_REF_NAME" @releaseFiles --verify-tag --title "$env:GITHUB_REF_NAME" --notes-file release-notes.md
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release publication failed.' }

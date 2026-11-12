@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Nookit",
+  "productName": "Nookits",
   "version": "0.1.0",
   "identifier": "com.nookits.app",
   "build": {
@@ -13,8 +13,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "shortDescription": "Nookit",
+    "targets": ["msi"],
+    "shortDescription": "Your scripts, one click away.",
+    "publisher": "Github@ZhonFortune",
     "icon": ["generated/icons/icon.ico"],
     "externalBin": ["binaries/nookits-node"],
     "resources": {
