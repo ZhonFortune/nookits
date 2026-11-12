@@ -1,6 +1,6 @@
 # Nookits - Your scripts, one click away.
 
-<img src="assets/icon.svg" alt="Nookits" width="96" />
+![Nookits](assets/banner.png)
 
 <br>English | [简体中文](README_ZHCN.md)<br>
 

@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tag = process.env.GITHUB_REF_NAME ?? '';
-const pattern = /^(?:v\.)?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))$/;
+const pattern = /^v?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))$/;
 const match = pattern.exec(tag);
 const valid = Boolean(match) && match[2].split('.').every((part) => !/^\d+$/.test(part) || part === '0' || !part.startsWith('0'));
 const mode = process.argv[2];
@@ -101,7 +101,7 @@ if (mode === 'validate') {
   if (!process.env.GITHUB_OUTPUT) throw new Error('GITHUB_OUTPUT is required.');
   await appendFile(process.env.GITHUB_OUTPUT, `publish=${valid}\n`);
 } else {
-  if (!valid) throw new Error('Expected N.N.N-STR or v.N.N.N-STR release tag.');
+  if (!valid) throw new Error('Expected N.N.N-STR or vN.N.N-STR release tag.');
   const version = match[1];
   if (mode === 'prepare') {
     const metadata = await readJson('package.json');

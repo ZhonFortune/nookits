@@ -1,6 +1,6 @@
 # Nookits - 轻量脚本工具
 
-<img src="assets/icon.svg" alt="Nookits" width="96" />
+![Nookits](assets/banner.png)
 
 <br>[English](README.md) | 简体中文<br>
 
