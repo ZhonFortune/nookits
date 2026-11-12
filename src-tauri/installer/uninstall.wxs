@@ -10,12 +10,33 @@
     <Property Id="NOOKITS_KEEP_USER_DATA" Value="1" Secure="yes" />
     <Property Id="NOOKITS_REMOVE_USER_DATA" Value="0" Secure="yes" />
     <Property Id="NOOKITS_USER_PROFILE" Secure="yes" />
+    <Property Id="NOOKITS_UNINSTALL" Secure="yes" />
+    <Property Id="NOOKITS_UNINSTALL_CONFIRMED" Secure="yes" />
+    <SetProperty Id="Preselected" Value="1" After="CostFinalize" Sequence="ui">
+      Installed AND NOOKITS_UNINSTALL = "1"
+    </SetProperty>
 
     <!-- Capture the interactive user's profile before MSI elevation. -->
     <SetProperty Id="NOOKITS_USER_PROFILE" Value="[%USERPROFILE]"
                  Before="AppSearch" Sequence="both">NOT NOOKITS_USER_PROFILE</SetProperty>
 
     <DirectoryRef Id="INSTALLDIR">
+      <!-- Use a standard uninstall entry so Windows Settings preserves full MSI UI. -->
+      <Component Id="NookitsUninstallEntry" Guid="*" Win64="yes">
+        <RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\{{bundle_id}}">
+          <RegistryValue Name="DisplayName" Type="string" Value="[ProductName]" KeyPath="yes" />
+          <RegistryValue Name="DisplayVersion" Type="string" Value="[ProductVersion]" />
+          <RegistryValue Name="Publisher" Type="string" Value="[Manufacturer]" />
+          <RegistryValue Name="DisplayIcon" Type="string" Value="[INSTALLDIR]{{product_name}}.exe,0" />
+          <RegistryValue Name="InstallLocation" Type="string" Value="[INSTALLDIR]" />
+          <RegistryValue Name="UninstallString" Type="string"
+                         Value="&quot;[System64Folder]msiexec.exe&quot; /i [ProductCode] /qf NOOKITS_UNINSTALL=1" />
+          <RegistryValue Name="QuietUninstallString" Type="string"
+                         Value="&quot;[System64Folder]msiexec.exe&quot; /x [ProductCode] /qn NOOKITS_REMOVE_USER_DATA=0" />
+          <RegistryValue Name="NoModify" Type="integer" Value="1" />
+          <RegistryValue Name="NoRepair" Type="integer" Value="1" />
+        </RegistryKey>
+      </Component>
       <Component Id="NookitsUserDataCleanup" Guid="*">
         <RegistryValue Root="HKCU" Key="Software\{{manufacturer}}\{{product_name}}"
                        Name="UserDataCleanup" Type="integer" Value="1" KeyPath="yes" />
@@ -25,6 +46,7 @@
     <!-- Ask the existing instance to stop its scripts and exit normally. -->
     <CustomAction Id="NookitsRequestExit" FileKey="Path" ExeCommand="--installer-exit"
                   Execute="immediate" Return="ignore" />
+    <CustomAction Id="NookitsRequireUninstallConfirmation" Error="!(loc.installerConfirmUninstall)" />
     <CustomAction Id="NookitsDeleteUserData" FileKey="Path"
                   ExeCommand="--installer-remove-user-data &quot;[NOOKITS_USER_PROFILE]&quot;"
                   Execute="deferred" Impersonate="yes" Return="check" />
@@ -32,17 +54,20 @@
     <util:CloseApplication Id="NookitsCloseApp" Target="{{product_name}}.exe"
                            CloseMessage="yes" ElevatedCloseMessage="yes"
                            RebootPrompt="no" TerminateProcess="0" Timeout="5" Sequence="1">
-      Installed AND REMOVE = "ALL"
+      Installed OR WIX_UPGRADE_DETECTED
     </util:CloseApplication>
     <util:CloseApplication Id="NookitsCloseRuntime" Target="{{runtime_name}}.exe"
                            CloseMessage="yes" ElevatedCloseMessage="yes"
                            RebootPrompt="no" TerminateProcess="0" Timeout="5" Sequence="2">
-      Installed AND REMOVE = "ALL"
+      Installed OR WIX_UPGRADE_DETECTED
     </util:CloseApplication>
     <InstallExecuteSequence>
-      <Custom Action="NookitsRequestExit" Before="InstallValidate">Installed AND REMOVE = "ALL"</Custom>
-      <Custom Action="WixCloseApplications$(var.NookitsUtilSuffix)" Before="NookitsDeleteUserData">
-        Installed AND REMOVE = "ALL"
+      <Custom Action="NookitsRequireUninstallConfirmation" Before="NookitsRequestExit">
+        Installed AND REMOVE = "ALL" AND UILevel &gt;= 5 AND NOT UPGRADINGPRODUCTCODE AND NOT NOOKITS_UNINSTALL_CONFIRMED
+      </Custom>
+      <Custom Action="NookitsRequestExit" Before="InstallValidate">Installed OR WIX_UPGRADE_DETECTED</Custom>
+      <Custom Action="WixCloseApplications$(var.NookitsUtilSuffix)" After="InstallInitialize">
+        Installed OR WIX_UPGRADE_DETECTED
       </Custom>
       <Custom Action="NookitsDeleteUserData" Before="RemoveFiles">
         NOOKITS_REMOVE_USER_DATA = "1" AND NOOKITS_USER_PROFILE AND REMOVE = "ALL" AND NOT UPGRADINGPRODUCTCODE
@@ -66,7 +91,8 @@
           <Publish Property="NOOKITS_REMOVE_USER_DATA" Value="1" Order="1">NOT NOOKITS_KEEP_USER_DATA</Publish>
           <Publish Property="NOOKITS_REMOVE_USER_DATA" Value="0" Order="2">NOOKITS_KEEP_USER_DATA = "1"</Publish>
           <Publish Property="REMOVE" Value="ALL" Order="3">1</Publish>
-          <Publish Event="EndDialog" Value="Return" Order="4">1</Publish>
+          <Publish Property="NOOKITS_UNINSTALL_CONFIRMED" Value="1" Order="4">1</Publish>
+          <Publish Event="EndDialog" Value="Return" Order="5">1</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="286" Y="243" Width="66" Height="17"
                  Cancel="yes" Text="!(loc.installerCancel)">
@@ -78,5 +104,10 @@
       <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog"
                Value="NookitsUninstallDlg" Order="2">REMOVE = "ALL"</Publish>
     </UI>
+    <InstallUISequence>
+      <Show Dialog="NookitsUninstallDlg" Before="ProgressDlg">
+        Installed AND (REMOVE = "ALL" OR NOOKITS_UNINSTALL = "1") AND NOT UPGRADINGPRODUCTCODE AND NOT NOOKITS_UNINSTALL_CONFIRMED
+      </Show>
+    </InstallUISequence>
   </Fragment>
 </Wix>

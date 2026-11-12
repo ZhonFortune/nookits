@@ -22,7 +22,7 @@
       "wix": {
         "template": "installer/main.wxs",
         "fragmentPaths": ["generated/installer/uninstall.wxs"],
-        "componentRefs": ["NookitsUserDataCleanup"],
+        "componentRefs": ["NookitsUserDataCleanup", "NookitsUninstallEntry"],
         "language": {
           "en-US": { "localePath": "generated/installer/en-US.wxl" }
         }

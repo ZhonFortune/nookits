@@ -36,6 +36,7 @@ const runtimeName = config.bundle.externalBin.map((binary) => binary.split(/[\\/
   .find((name) => name.endsWith('-node'));
 if (!runtimeName) throw new Error('The installer requires the bundled Node.js runtime.');
 const installerValues = {
+  bundle_id: config.identifier,
   manufacturer: config.bundle.publisher,
   product_name: config.productName,
   runtime_name: runtimeName,

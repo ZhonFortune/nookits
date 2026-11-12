@@ -21,7 +21,7 @@
             Version="{{version}}">
 
         <Package Id="*"
-                 Description="{{product_name}} Application Installer" Comments="" Keywords="Installer"
+                 Description="{{product_name}} Application Installer" Comments="{{product_name}} Application Installer" Keywords="Installer"
                  InstallerVersion="450"
                  Languages="0"
                  Compressed="yes"
@@ -38,9 +38,9 @@
         <Property Id="LAUNCHAPPARGS" Secure="yes" />
 
         {{#if allow_downgrades}}
-            <MajorUpgrade Schedule="afterInstallInitialize" AllowDowngrades="yes" />
+            <MajorUpgrade Schedule="afterInstallExecute" AllowDowngrades="yes" />
         {{else}}
-            <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
+            <MajorUpgrade Schedule="afterInstallExecute" DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
         {{/if}}
 
         <InstallExecuteSequence>
@@ -61,6 +61,7 @@
 
         <Icon Id="ProductIcon" SourceFile="{{icon_path}}"/>
         <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+        <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
         <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
         <SetProperty Id="ARPNOMODIFY" Value="1" After="InstallValidate" Sequence="execute"/>
 
@@ -180,7 +181,7 @@
 						  Name="Uninstall {{product_name}}"
 						  Description="Uninstalls {{product_name}}"
 						  Target="[System64Folder]msiexec.exe"
-						  Arguments="/x [ProductCode]" />
+						  Arguments="/i [ProductCode] /qf NOOKITS_UNINSTALL=1" />
 
 				<RemoveFolder Id="INSTALLDIR"
 							  On="uninstall" />

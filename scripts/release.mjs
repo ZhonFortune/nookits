@@ -5,9 +5,9 @@ import { execFileSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tag = process.env.GITHUB_REF_NAME ?? '';
-const pattern = /^v?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))$/;
+const pattern = /^v?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?)$/;
 const match = pattern.exec(tag);
-const valid = Boolean(match) && match[2].split('.').every((part) => !/^\d+$/.test(part) || part === '0' || !part.startsWith('0'));
+const valid = Boolean(match) && validPrerelease(match[2]);
 const mode = process.argv[2];
 const releaseCategories = new Map([
   ['feat', 'Features'],
@@ -22,6 +22,10 @@ const releaseCategories = new Map([
   ['chore', 'Chore'],
   ['revert', 'Reverts'],
 ]);
+
+function validPrerelease(value) {
+  return value === undefined || value.split('.').every((part) => !/^\d+$/.test(part) || part === '0' || !part.startsWith('0'));
+}
 
 function categoryFor(subject) {
   const parsed = /^([a-z][a-z0-9-]*)(?:\([^()\r\n]+\))?!?\s*[:：]\s*\S/i.exec(subject);
@@ -45,7 +49,7 @@ async function writeReleaseNotes() {
   const candidates = git('tag', '--merged', tag).split('\n').filter((candidate) => {
     if (candidate === tag) return false;
     const parsed = pattern.exec(candidate);
-    return parsed && parsed[2].split('.').every((part) => !/^\d+$/.test(part) || part === '0' || !part.startsWith('0'));
+    return parsed && validPrerelease(parsed[2]);
   });
   const previous = candidates.length > 0
     ? git('describe', '--tags', '--abbrev=0', ...candidates.map((candidate) => `--match=${candidate}`), tag)
@@ -97,7 +101,7 @@ if (mode === 'validate') {
   if (!process.env.GITHUB_OUTPUT) throw new Error('GITHUB_OUTPUT is required.');
   await appendFile(process.env.GITHUB_OUTPUT, `publish=${valid}\n`);
 } else {
-  if (!valid) throw new Error('Expected N.N.N-STR or vN.N.N-STR release tag.');
+  if (!valid) throw new Error('Expected N.N.N, vN.N.N, N.N.N-STR, or vN.N.N-STR release tag.');
   const version = match[1];
   if (mode === 'prepare') {
     const metadata = await readJson('package.json');

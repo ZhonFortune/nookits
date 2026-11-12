@@ -17,6 +17,7 @@
   "confirm": "确定",
   "close": "关闭",
   "installerUninstallTitle": "卸载 [ProductName]",
+  "installerConfirmUninstall": "请确认是否保留用户数据，再继续卸载。",
   "installerUninstallDescription": "卸载前将关闭 Nookits 及其正在运行的脚本。",
   "installerKeepUserData": "保留用户数据",
   "installerKeepUserDataDescription": "保留用户数据，包括脚本目录、设置、日志。",

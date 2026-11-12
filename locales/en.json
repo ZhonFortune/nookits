@@ -17,6 +17,7 @@
   "confirm": "OK",
   "close": "Close",
   "installerUninstallTitle": "Remove [ProductName]",
+  "installerConfirmUninstall": "Review your data retention choice and confirm removal to continue.",
   "installerUninstallDescription": "Nookits and its running scripts will close before removal.",
   "installerKeepUserData": "Keep user data",
   "installerKeepUserDataDescription": "Keep user data, including scripts, settings, and logs.",
